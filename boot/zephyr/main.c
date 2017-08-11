@@ -40,6 +40,15 @@ struct arm_vector_table {
 
 extern void zephyr_flash_area_warn_on_open(void);
 
+static uint32_t * vector_in_ram = (uint32_t *)(0x20003F40);
+static void relocate_vector_table(uint32_t * vector_in_flash)
+{
+	for ( int i = 0; i < 48; ++i )
+	{
+		*vector_in_ram++ = *vector_in_flash++;
+	}
+}
+
 static void do_boot(struct boot_rsp *rsp)
 {
     struct arm_vector_table *vt;
@@ -60,6 +69,7 @@ static void do_boot(struct boot_rsp *rsp)
     irq_lock();
     sys_clock_disable();
     _MspSet(vt->msp);
+	relocate_vector_table((uint32_t *)vt);
     ((void (*)(void))vt->reset)();
 }
 #else
@@ -89,9 +99,7 @@ void main(void)
 {
     struct boot_rsp rsp;
     int rc;
-
     BOOT_LOG_INF("Starting bootloader");
-
     os_heap_init();
 
     boot_flash_device = device_get_binding(FLASH_DRIVER_NAME);
